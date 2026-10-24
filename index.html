@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Симулятор веса тела</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+
+        .main-display {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            gap: 40px;
+            flex-wrap: wrap;
+        }
+
+        .human-figure {
+            position: relative;
+            width: 300px;
+            height: 500px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .body-svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .controls {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 15px;
+            margin-top: 30px;
+        }
+
+        .control-group {
+            margin-bottom: 25px;
+        }
+
+        .control-group label {
+            display: block;
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        input[type="range"] {
+            flex: 1;
+            height: 8px;
+            border-radius: 4px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            background: #764ba2;
+        }
+
+        .value-display {
+            background: #667eea;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 8px;
+            min-width: 100px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            font-size: 0.9em;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+
+        .stat-card .value {
+            font-size: 2em;
+            font-weight: bold;
+        }
+
+        .arrow-section {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .input-arrow {
+            top: 20%;
+            left: -150px;
+        }
+
+        .output-arrows {
+            top: 40%;
+            right: -200px;
+            flex-direction: column;
+        }
+
+        .arrow {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255,255,255,0.9);
+            padding: 10px 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .arrow-icon {
+            font-size: 1.5em;
+        }
+
+        .arrow-label {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .time-display {
+            text-align: center;
+            font-size: 1.5em;
+            color: #667eea;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .bmi-indicator {
+            text-align: center;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .bmi-underweight { background: #ffeaa7; color: #d63031; }
+        .bmi-normal { background: #55efc4; color: #00b894; }
+        .bmi-overweight { background: #fab1a0; color: #d63031; }
+        .bmi-obese { background: #ff7675; color: white; }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" x-data="bodySimulator()" x-init="init()">
+        <h1>🏃 Симулятор изменения веса тела</h1>
+        
+        <div class="time-display">
+            ⏰ День: <span x-text="day"></span> | Время: <span x-text="currentTime"></span>
+        </div>
+
+        <div class="main-display">
+            <!-- Input Arrow -->
+            <div class="arrow-section input-arrow">
+                <div class="arrow">
+                    <span class="arrow-label">🍔 Калории:</span>
+                    <span x-text="calorieInput"></span>
+                    <span class="arrow-icon">➡️</span>
+                </div>
+            </div>
+
+            <!-- Human Figure -->
+            <div class="human-figure">
+                <svg class="body-svg" viewBox="0 0 200 400" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Head -->
+                    <circle :cx="headCX" :cy="headCY" :r="headRadius" fill="#FFD7B3" stroke="#333" stroke-width="2"/>
+                    
+                    <!-- Body/Torso -->
+                    <ellipse :cx="bodyCX" :cy="bodyCY" :rx="bodyRX" :ry="bodyRY" fill="#FFD7B3" stroke="#333" stroke-width="2"/>
+                    
+                    <!-- Arms -->
+                    <line :x1="armStartX" :y1="armStartY" :x2="armEndX" :y2="armEndY" stroke="#FFD7B3" stroke-width="12" stroke-linecap="round"/>
+                    <line :x1="armStartXRight" :y1="armStartYRight" :x2="armEndXRight" :y2="armEndYRight" stroke="#FFD7B3" stroke-width="12" stroke-linecap="round"/>
+                    
+                    <!-- Legs -->
+                    <line :x1="legStartXLeft" :y1="legStartYLeft" :x2="legEndXLeft" :y2="legEndYLeft" stroke="#FFD7B3" stroke-width="14" stroke-linecap="round"/>
+                    <line :x1="legStartXRight" :y1="legStartYRight" :x2="legEndXRight" :y2="legEndYRight" stroke="#FFD7B3" stroke-width="14" stroke-linecap="round"/>
+                    
+                    <!-- Mouth -->
+                    <path :d="mouthPath" fill="none" stroke="#d63031" stroke-width="2" stroke-linecap="round"/>
+                    
+                    <!-- Muscles definition (visible when muscular) -->
+                    <g :opacity="muscleDefinition">
+                        <path d="M85,140 Q100,150 115,140" fill="none" stroke="#e0a080" stroke-width="1"/>
+                        <path d="M85,160 Q100,170 115,160" fill="none" stroke="#e0a080" stroke-width="1"/>
+                    </g>
+                </svg>
+            </div>
+
+            <!-- Output Arrows -->
+            <div class="arrow-section output-arrows">
+                <div class="arrow">
+                    <span class="arrow-icon">🔥</span>
+                    <span class="arrow-label">Температура:</span>
+                    <span x-text="bodyTempCalories"></span>
+                </div>
+                <div class="arrow">
+                    <span class="arrow-icon">🏃</span>
+                    <span class="arrow-label">Активность:</span>
+                    <span x-text="activityCalories"></span>
+                </div>
+                <div class="arrow">
+                    <span class="arrow-icon">💤</span>
+                    <span class="arrow-label">Покой:</span>
+                    <span x-text="restingCalories"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- BMI Indicator -->
+        <div class="bmi-indicator" :class="bmiClass">
+            <span x-text="bmiStatus"></span> | ИМТ: <span x-text="bmi.toFixed(1)"></span>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <div class="control-group">
+                <label>🍔 Потребление калорий (в день):</label>
+                <div class="slider-container">
+                    <input type="range" min="500" max="5000" step="50" x-model="calorieInput">
+                    <div class="value-display"><span x-text="calorieInput"></span> ккал</div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>🏃 Физическая активность:</label>
+                <div class="slider-container">
+                    <input type="range" min="1" max="5" step="0.1" x-model="activityLevel">
+                    <div class="value-display">Уровень <span x-text="activityLevel.toFixed(1)"></span></div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>⚡ Скорость времени (1 сутки = <span x-text="dayDuration"></span> сек):</label>
+                <div class="slider-container">
+                    <input type="range" min="1" max="60" step="1" x-model="dayDuration">
+                    <div class="value-display"><span x-text="dayDuration"></span> сек</div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>🌡️ Температура тела (влияет на расход):</label>
+                <div class="slider-container">
+                    <input type="range" min="35" max="40" step="0.1" x-model="bodyTemperature">
+                    <div class="value-display"><span x-text="bodyTemperature.toFixed(1)"></span>°C</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats">
+            <div class="stat-card">
+                <h3>⚖️ Вес</h3>
+                <div class="value"><span x-text="weight.toFixed(1)"></span> кг</div>
+            </div>
+            <div class="stat-card">
+                <h3>📊 ИМТ</h3>
+                <div class="value"><span x-text="bmi.toFixed(1)"></span></div>
+            </div>
+            <div class="stat-card">
+                <h3>🔥 Расход (день)</h3>
+                <div class="value"><span x-text="totalCalorieBurn.toFixed(0)"></span> ккал</div>
+            </div>
+            <div class="stat-card">
+                <h3>📈 Баланс</h3>
+                <div class="value" :style="{color: calorieBalance >= 0 ? '#00b894' : '#d63031'}">
+                    <span x-text="calorieBalance >= 0 ? '+' : ''"></span><span x-text="calorieBalance.toFixed(0)"></span> ккал
+                </div>
+            </div>
+            <div class="stat-card">
+                <h3>💪 Мышцы</h3>
+                <div class="value"><span x-text="muscleMass.toFixed(1)"></span> кг</div>
+            </div>
+            <div class="stat-card">
+                <h3>📦 Жир</h3>
+                <div class="value"><span x-text="fatMass.toFixed(1)"></span> кг</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function bodySimulator() {
+            return {
+                // State
+                weight: 70,
+                height: 175,
+                muscleMass: 30,
+                fatMass: 14,
+                day: 1,
+                dayProgress: 0,
+                
+                // Controls
+                calorieInput: 2000,
+                activityLevel: 2,
+                dayDuration: 10,
+                bodyTemperature: 36.6,
+                
+                // Calculated values
+                calorieBalance: 0,
+                totalCalorieBurn: 0,
+                bodyTempCalories: 0,
+                activityCalories: 0,
+                restingCalories: 0,
+                
+                // Animation
+                lastTime: 0,
+                accumulator: 0,
+                
+                init() {
+                    this.lastTime = performance.now();
+                    this.startSimulation();
+                },
+                
+                startSimulation() {
+                    const tick = () => {
+                        const now = performance.now();
+                        const deltaTime = (now - this.lastTime) / 1000;
+                        this.lastTime = now;
+                        
+                        this.update(deltaTime);
+                        requestAnimationFrame(tick);
+                    };
+                    requestAnimationFrame(tick);
+                },
+                
+                update(deltaTime) {
+                    // Calculate daily calorie burn
+                    this.calculateCalorieBurn();
+                    
+                    // Calculate calorie balance per day
+                    this.calorieBalance = this.calorieInput - this.totalCalorieBurn;
+                    
+                    // Update weight based on calorie balance
+                    // 7700 kcal ≈ 1 kg of fat
+                    const weightChangePerDay = this.calorieBalance / 7700;
+                    
+                    // Scale by time progression
+                    const dayFraction = deltaTime / this.dayDuration;
+                    this.dayProgress += dayFraction;
+                    
+                    if (this.dayProgress >= 1) {
+                        this.day += Math.floor(this.dayProgress);
+                        this.dayProgress = this.dayProgress % 1;
+                        
+                        // Apply weight change
+                        if (this.calorieBalance > 0) {
+                            // Surplus - gain fat and some muscle
+                            const fatGain = weightChangePerDay * 0.75;
+                            const muscleGain = weightChangePerDay * 0.25;
+                            this.fatMass += fatGain;
+                            this.muscleMass += muscleGain;
+                        } else {
+                            // Deficit - lose fat and some muscle
+                            const fatLoss = Math.abs(weightChangePerDay) * 0.75;
+                            const muscleLoss = Math.abs(weightChangePerDay) * 0.25;
+                            this.fatMass = Math.max(3, this.fatMass - fatLoss);
+                            this.muscleMass = Math.max(20, this.muscleMass - muscleLoss);
+                        }
+                        
+                        this.weight = this.muscleMass + this.fatMass + 26; // 26kg for bones, organs, water
+                    }
+                    
+                    // Ensure minimum values
+                    this.weight = Math.max(40, this.weight);
+                },
+                
+                calculateCalorieBurn() {
+                    // Basal Metabolic Rate (simplified Mifflin-St Jeor)
+                    const bmr = 10 * this.weight + 6.25 * this.height - 5 * 30 + 5;
+                    
+                    // Activity multiplier
+                    const activityMultiplier = 1.2 + (this.activityLevel - 1) * 0.2;
+                    
+                    // Temperature effect (higher temp = more calories burned)
+                    const tempEffect = 1 + (this.bodyTemperature - 36.6) * 0.1;
+                    
+                    this.restingCalories = bmr * 0.6;
+                    this.activityCalories = bmr * (activityMultiplier - 1) * 0.7;
+                    this.bodyTempCalories = bmr * 0.4 * tempEffect;
+                    
+                    this.totalCalorieBurn = this.restingCalories + this.activityCalories + this.bodyTempCalories;
+                },
+                
+                get bmi() {
+                    const heightM = this.height / 100;
+                    return this.weight / (heightM * heightM);
+                },
+                
+                get bmiClass() {
+                    if (this.bmi < 18.5) return 'bmi-underweight';
+                    if (this.bmi < 25) return 'bmi-normal';
+                    if (this.bmi < 30) return 'bmi-overweight';
+                    return 'bmi-obese';
+                },
+                
+                get bmiStatus() {
+                    if (this.bmi < 18.5) return 'Недостаток веса';
+                    if (this.bmi < 25) return 'Нормальный вес';
+                    if (this.bmi < 30) return 'Избыточный вес';
+                    return 'Ожирение';
+                },
+                
+                get currentTime() {
+                    const hours = Math.floor(this.dayProgress * 24);
+                    const minutes = Math.floor((this.dayProgress * 24 - hours) * 60);
+                    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                },
+                
+                // SVG figure properties based on body composition
+                get headCX() { return 100; },
+                get headCY() { return 50; },
+                get headRadius() { 
+                    return 25 + (this.bmi - 22) * 0.5; 
+                },
+                
+                get bodyCX() { return 100; },
+                get bodyCY() { return 140; },
+                get bodyRX() { 
+                    // Body width increases with fat and muscle
+                    const fatWidth = (this.fatMass - 14) * 0.8;
+                    const muscleWidth = (this.muscleMass - 30) * 0.3;
+                    return Math.max(25, 30 + fatWidth + muscleWidth); 
+                },
+                get bodyRY() { 
+                    // Body length changes slightly
+                    return 45 + (this.bmi - 22) * 0.3; 
+                },
+                
+                get armStartX() { return 100 - this.bodyRX; },
+                get armStartY() { return 120; },
+                get armEndX() { return 50 - this.bodyRX * 0.3; },
+                get armEndY() { return 180; },
+                
+                get armStartXRight() { return 100 + this.bodyRX; },
+                get armStartYRight() { return 120; },
+                get armEndXRight() { return 150 + this.bodyRX * 0.3; },
+                get armEndYRight() { return 180; },
+                
+                get legStartXLeft() { return 90 - this.bodyRX * 0.3; },
+                get legStartYLeft() { return 185; },
+                get legEndXLeft() { return 80 - this.bodyRX * 0.2; },
+                get legEndYLeft() { return 280; },
+                
+                get legStartXRight() { return 90 + this.bodyRX * 0.3; },
+                get legStartYRight() { return 185; },
+                get legEndXRight() { return 100 + this.bodyRX * 0.2; },
+                get legEndYRight() { return 280; },
+                
+                get mouthPath() {
+                    // Smile when healthy, frown when unhealthy
+                    if (this.bmi >= 18.5 && this.bmi < 25) {
+                        return 'M 90,65 Q 100,72 110,65'; // Smile
+                    } else {
+                        return 'M 90,70 Q 100,63 110,70'; // Frown
+                    }
+                },
+                
+                get muscleDefinition() {
+                    // Show muscle definition when muscular and low fat
+                    if (this.muscleMass > 35 && this.fatMass < 15) {
+                        return 0.8;
+                    } else if (this.muscleMass > 32 && this.fatMass < 18) {
+                        return 0.4;
+                    }
+                    return 0;
+                }
+            }
+        }
+    </script>
+</body>
+</html>
